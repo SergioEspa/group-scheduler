@@ -1,0 +1,232 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Arial', sans-serif;
+}
+
+body {
+    background-color: #f9f9f9;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+}
+
+.container {
+    background-color: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    max-width: 900px;
+}
+
+h1 {
+    margin-bottom: 20px;
+    color: #333;
+    text-align: center;
+}
+
+.formulario {
+    margin-bottom: 20px;
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+.calendario-container {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 20px;
+    align-items: center;
+}
+
+/* Calendario */
+.calendario {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 5px;
+}
+
+.dia {
+    background-color: #e3f2fd;
+    border: 1px solid #90caf9;
+    padding: 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    min-height: 60px;
+    position: relative;
+}
+
+.dia:hover {
+    background-color: #bbdefb;
+}
+
+.dia.seleccionado {
+    background-color: #4CAF50; /* Color verde */
+    color: white;
+}
+
+.dia.seleccionado:hover {
+    background-color: #4CAF50 !important; /* Mantener el verde sin el cambio por hover */
+}
+
+.fecha {
+    font-weight: bold;
+    font-size: 12px;
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    color: #555;
+}
+
+/* Panel de Horas */
+.panel-horas {
+    background-color: #f1f8e9;
+    border: 1px solid #c5e1a5;
+    padding: 10px;
+    border-radius: 8px;
+    max-height: 400px;
+    overflow-y: auto;
+    text-align: center;
+    min-width: 150px;
+}
+
+.panel-horas h3 {
+    margin-bottom: 10px;
+    color: #4CAF50;
+    font-size: 16px;
+}
+
+.horas {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.hora-bloque {
+    background-color: #e8f5e9;
+    padding: 5px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: background-color 0.2s;
+    text-align: center;
+}
+
+.hora-bloque:hover {
+    background-color: #c8e6c9;
+}
+
+.hora-bloque.seleccionado {
+    background-color: #66bb6a;
+    color: white;
+    font-weight: bold;
+}
+
+/* Botón de Guardar */
+.guardar-btn {
+    padding: 8px 16px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    font-size: 14px;
+    margin-top: 20px;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.guardar-btn:hover {
+    background-color: #388E3C;
+}
+
+/* Estilo para la tabla de ganadores */
+#ganadores-container {
+    margin-top: 20px;
+    padding: 10px;
+    background-color: #f3f8fc;
+    border-radius: 5px;
+}
+  
+#tabla-ganadores {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+  
+#tabla-ganadores th, #tabla-ganadores td {
+    padding: 10px;
+    text-align: center;
+    border: 1px solid #ccc;
+}
+  
+#tabla-ganadores th {
+    background-color: #e3f2fc;
+}
+  
+#tabla-ganadores td {
+    background-color: #ffffff;
+    font-weight: bold;
+    color: #333;
+}
+  
+#tabla-ganadores td.ganador {
+    background-color: #d3f9d8;
+    color: #2d9f00;
+}
+  
+.tarjeta-top3 {
+    background-color: #f9f9f9;
+    border-radius: 10px;
+    padding: 15px;
+    margin: 10px 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: transform 0.2s;
+    font-family: 'Arial', sans-serif;
+    font-size: 14px;
+}
+
+.tarjeta-top3:hover {
+    transform: scale(1.03);
+}
+
+.hora-top3 {
+    font-weight: bold;
+    color: #333;
+}
+
+.votos-top3 {
+    background-color: #e0e0e0;
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 13px;
+}
+
+/* Colores para el Top 3 */
+.posicion-1 {
+    background-color: #FFD700;  /* Oro */
+    color: #000;
+}
+
+.posicion-2 {
+    background-color: #C0C0C0;  /* Plata */
+    color: #000;
+}
+
+.posicion-3 {
+    background-color: #CD7F32;  /* Bronce */
+    color: #fff;
+}
+
+.dia.marcado {
+    background-color: #4CAF50 !important; 
+    border: 2px solid green;
+}

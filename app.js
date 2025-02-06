@@ -1,10 +1,34 @@
+// =========================
+// 📅 CONFIGURACIÓN INICIAL
+// =========================
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.1.1/firebase-app.js";
+import { getDatabase, ref, child, get, update, set } from "https://www.gstatic.com/firebasejs/9.1.1/firebase-database.js";
+
+let members = ["Jose", "Pol", "Sara", "Sergio", "Susana"];
+let members_availabilities = {};
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDusOS6miNKlSsIqDQdO3wUMMMnd7NhQGQ",
+  authDomain: "band-scheduler-3d73e.firebaseapp.com",
+  databaseURL: "https://band-scheduler-3d73e-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "band-scheduler-3d73e",
+  storageBucket: "band-scheduler-3d73e.appspot.com",
+  messagingSenderId: "315542799355",
+  appId: "1:315542799355:web:0c9dbb857544a88dfb815e",
+  measurementId: "G-P1YY4EK871"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
 const calendario = document.getElementById("calendario");
 const hoy = new Date();
-const GIST_ID = "fa3efaace0af92b48d0d3b3755c5fad6"; 
-const API_URL = `https://api.github.com/gists/${GIST_ID}`;
-import { TOKEN } from "./config.js"; 
 let diaSeleccionado = null;
 
+// =========================
+// 🔑 FUNCIONES UTILITARIAS
+// =========================
 function obtenerNombreUsuario() {
     const nombre = document.getElementById("miembro").value;
     if (!nombre) {
@@ -15,162 +39,228 @@ function obtenerNombreUsuario() {
 }
 
 async function cargarDisponibilidad() {
-    const respuesta = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
-        method: "GET",
-        headers: {
-            "X-Master-Key": API_KEY
+    const dbRef = ref(db, 'disponibilidad');
+    const snapshot = await get(dbRef);
+    if (snapshot.exists()) {
+        console.log('Disponibilidad encontrada:', snapshot.val());
+        return snapshot.val();
+    } else {
+        console.log('Creando el nodo disponibilidad y miembros...');
+        for (const miembro of members) {
+            const miembroRef = ref(db, `disponibilidad/${miembro}`);
+            await set(miembroRef, {});
         }
-    });
-
-    const datos = await respuesta.json();
-    return datos.record;
+        return {};
+    }
 }
 
+async function actualizarDisponibilidad(datos) {
+    const dbRef = ref(db);
+    await set(dbRef, datos);
+}
+
+// =========================
+// 💾 GUARDAR DISPONIBILIDAD
+// =========================
 async function guardarDisponibilidad() {
     const nombre = obtenerNombreUsuario();
-    if (!nombre) {
-        return;
-    }
+    if (!nombre) return;
 
     const disponibilidad = {};
-    document.querySelectorAll(".dia").forEach(dia => {
-        const fecha = dia.dataset.fecha;
-        const horasSeleccionadas = Array.from(dia.querySelectorAll(".seleccionado"))
-            .map(bloque => bloque.dataset.hora)
-            .filter(hora => hora);
 
-        if (horasSeleccionadas.length > 0) {
-            disponibilidad[fecha] = horasSeleccionadas;
+    for (const fecha in members_availabilities[nombre]) {
+        const horas = members_availabilities[nombre][fecha];
+        if (horas.length > 0) {
+            disponibilidad[fecha] = horas;
         }
-    });
-
-    const datos = await cargarDisponibilidad();
-    datos.disponibilidad[nombre] = disponibilidad;
-
-    const respuesta = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
-        method: "PUT",
-        headers: {
-            "Content-Type": "application/json",
-            "X-Master-Key": API_KEY
-        },
-        body: JSON.stringify(datos)
-    });
-
-    if (respuesta.ok) {
-        alert(`¡Disponibilidad guardada para ${nombre}!`);
-        calcularTop3Semanal(); // Actualizar el top 3 al guardar
-    } else {
-        alert("Hubo un error al guardar la disponibilidad.");
     }
+
+    // 🔧 Actualizamos solo la disponibilidad del miembro actual
+    const miembroRef = ref(db, `disponibilidad/${nombre}`);
+    await set(miembroRef, disponibilidad);
+
+    alert(`¡Disponibilidad guardada para ${nombre}!`);
+    await mostrarCalendario();
+    await limpiarDatosObsoletos();
+    await calcularTop3Semanal();
 }
 
+
+// =========================
+// 📊 MOSTRAR DISPONIBILIDAD
+// =========================
 async function mostrarDisponibilidad() {
     const nombre = obtenerNombreUsuario();
     if (!nombre) return;
 
     const datos = await cargarDisponibilidad();
-    const disponibilidad = datos.disponibilidad[nombre];
-    
+    const disponibilidad = datos.disponibilidad?.[nombre] || {};
+
+    document.querySelectorAll(".hora-bloque").forEach(b => b.classList.remove("seleccionado"));
+
     if (disponibilidad) {
         for (const fecha in disponibilidad) {
             const horas = disponibilidad[fecha];
-            const dia = document.querySelector(`.dia[data-fecha="${fecha}"]`);
-            if (dia) {
-                horas.forEach(hora => {
-                    const bloque = dia.querySelector(`.hora-bloque[data-hora="${hora}"]`);
-                    if (bloque) bloque.classList.add("seleccionado");
-                });
-            }
+            horas.forEach(hora => {
+                const bloque = document.querySelector(`.dia[data-fecha="${fecha}"] .hora-bloque[data-hora="${hora}"]`);
+                if (bloque) bloque.classList.add("seleccionado");
+            });
         }
     }
 }
 
+// =========================
+// 🧹 LIMPIAR DATOS OBSOLETOS
+// =========================
 async function limpiarDatosObsoletos() {
-    const hoy = new Date().toISOString().split('T')[0];  // Fecha de hoy en formato YYYY-MM-DD
+    const hoyStr = hoy.toISOString().split('T')[0];
     const datos = await cargarDisponibilidad();
     let datosActualizados = false;
 
-    // Recorremos la disponibilidad de cada miembro
-    for (const miembro in datos.disponibilidad) {
-        const disponibilidad = datos.disponibilidad[miembro];
-
-        // Filtramos las fechas que aún no han pasado
-        for (const fecha in disponibilidad) {
-            if (fecha < hoy) {
-                delete disponibilidad[fecha];  // Eliminamos la fecha obsoleta
+    for (const miembro in datos) {
+        for (const fecha in datos[miembro]) {
+            if (fecha < hoyStr) {
+                delete datos[miembro][fecha];
                 datosActualizados = true;
             }
         }
+        if(Object.keys(datos[miembro]).length === 0) {
+            delete datos[miembro];
+            datosActualizados = true;
+        }
     }
 
-    // Guardamos los datos actualizados solo si hubo cambios
     if (datosActualizados) {
-        await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
-            method: "PUT",
-            headers: {
-                "Content-Type": "application/json",
-                "X-Master-Key": API_KEY
-            },
-            body: JSON.stringify(datos)
-        });
+        await actualizarDisponibilidad(datos);
     }
 }
 
-// Generar el calendario para 4 semanas
-for (let i = 0; i < 28; i++) {
-    const fecha = new Date();
-    fecha.setDate(hoy.getDate() + i);
+// =========================
+// 📅 GENERAR CALENDARIO
+// =========================
+async function mostrarCalendario() {
+    calendario.innerHTML = "";  // Limpiar calendario anterior
+    const nombreUsuario = obtenerNombreUsuario();
+    if (!nombreUsuario) return;
 
-    const dia = document.createElement("div");
-    dia.classList.add("dia");
-    dia.dataset.fecha = fecha.toISOString().split('T')[0];
+    const disponibilidadRef = ref(db, `disponibilidad/${nombreUsuario}`);
+    const snapshot = await get(disponibilidadRef);
+    const disponibilidadUsuario = snapshot.exists() ? snapshot.val() : {};
 
-    dia.innerHTML = `<div class="fecha">${fecha.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric' })}</div>`;
+    for (let i = 0; i < 28; i++) {
+        const fecha = new Date();
+        fecha.setDate(hoy.getDate() + i);
 
-    dia.addEventListener("click", function () {
-        if (diaSeleccionado !== dia) {
-            if (diaSeleccionado) {
+        const fechaISO = fecha.toISOString().split('T')[0];
+        const dia = document.createElement("div");
+        dia.classList.add("dia");
+        dia.dataset.fecha = fechaISO;
+
+        dia.innerHTML = `<div class="fecha">${fecha.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric' })}</div>`;
+
+        // ✅ Resaltar días con disponibilidad guardada
+        if (disponibilidadUsuario[fechaISO] && disponibilidadUsuario[fechaISO].length > 0) {
+            dia.classList.add("seleccionado");
+        } else {
+            dia.classList.remove("seleccionado");  // ✅ Asegura que días vacíos no estén resaltados
+        }
+
+        dia.addEventListener("click", async function () {
+            const nombreUsuario = obtenerNombreUsuario();
+            const fecha = dia.dataset.fecha;
+        
+            if (!nombreUsuario) return;
+
+            if(diaSeleccionado && diaSeleccionado !== dia && diaSeleccionado.classList.contains("marcado")) {
+                diaSeleccionado.classList.remove("marcado");
+            }
+
+            diaSeleccionado = dia;
+
+            if(diaSeleccionado.classList.contains("marcado")) {
+                diaSeleccionado.classList.remove("marcado");
+                diaSeleccionado.classList.remove("seleccionado");
+                if (members_availabilities[nombreUsuario]) {
+                    delete members_availabilities[nombreUsuario][fecha];
+                
+                    // Si ya no quedan fechas disponibles para el usuario, eliminar la clave entera
+                    if (Object.keys(members_availabilities[nombreUsuario]).length === 0) {
+                        delete members_availabilities[nombreUsuario];
+                    }
+                }
+                document.querySelectorAll(".hora.seleccionado").forEach((btn) => {
+                    btn.classList.remove("seleccionado");
+                });
                 document.getElementById("horas-container").innerHTML = "";
             }
-            diaSeleccionado = dia;
-            diaSeleccionado.classList.add("seleccionado");
-            generarSelectorHoras(dia);
-        } else {
-            diaSeleccionado.classList.remove("seleccionado");
-            diaSeleccionado.querySelectorAll(".hora-bloque.seleccionado, [class^='hora-']").forEach(bloque => bloque.remove());
-            diaSeleccionado = null;
-            document.getElementById("horas-container").innerHTML = "";
-        }
-    });
+            else{
+                diaSeleccionado.classList.add("seleccionado");
+                diaSeleccionado.classList.add("marcado");
+                generarSelectorHoras(dia);
+            }
+        });
+        
+              
 
-    calendario.appendChild(dia);
+        calendario.appendChild(dia);
+    }
 }
 
-function generarSelectorHoras(dia) {
+
+// =========================
+// 🕰️ GENERAR SELECTOR DE HORAS
+// =========================
+async function generarSelectorHoras(dia) {
     const horasContainer = document.getElementById("horas-container");
     horasContainer.innerHTML = "";
 
+    const nombreUsuario = obtenerNombreUsuario();
+    if (!nombreUsuario) return;
+
+    const fechaSeleccionada = dia.dataset.fecha;
+
+    // 📌 Si ya hay datos en memoria local, úsalos en lugar de hacer una nueva consulta
+    let horasDisponibles = members_availabilities[nombreUsuario]?.[fechaSeleccionada] || null;
+
+    if (horasDisponibles === null) {
+        // 🔄 Si no hay datos locales, obtener de Firebase
+        const miembroRef = ref(db, `disponibilidad/${nombreUsuario}/${fechaSeleccionada}`);
+        const snapshot = await get(miembroRef);
+        horasDisponibles = snapshot.exists() ? snapshot.val() : [];
+        
+        // Guardamos en memoria local para evitar recargas innecesarias
+        if (!members_availabilities[nombreUsuario]) {
+            members_availabilities[nombreUsuario] = {};
+        }
+        members_availabilities[nombreUsuario][fechaSeleccionada] = horasDisponibles;
+    }
+
+    // 📅 Generar los bloques de horas
     for (let hora = 10; hora <= 22; hora++) {
         const bloque = document.createElement("div");
         bloque.classList.add("hora-bloque");
         bloque.dataset.hora = hora;
         bloque.textContent = `${hora}:00`;
 
-        if (dia.querySelector(`.hora-${hora}`)) {
+        // ✅ Respetar selección previa en memoria local
+        if (horasDisponibles.includes(hora)) {
             bloque.classList.add("seleccionado");
         }
 
-        bloque.addEventListener("click", function () {
+        bloque.addEventListener("click", () => {
             bloque.classList.toggle("seleccionado");
 
             if (bloque.classList.contains("seleccionado")) {
-                const tempDiv = document.createElement("div");
-                tempDiv.classList.add(`hora-${hora}`, "seleccionado");
-                tempDiv.dataset.hora = hora;
-                dia.appendChild(tempDiv);
+                if (!members_availabilities[nombreUsuario][fechaSeleccionada]) {
+                    members_availabilities[nombreUsuario][fechaSeleccionada] = [];
+                }
+                // Evitar duplicados
+                if (!members_availabilities[nombreUsuario][fechaSeleccionada].includes(hora)) {
+                    members_availabilities[nombreUsuario][fechaSeleccionada].push(hora);
+                }
             } else {
-                const tempDiv = dia.querySelector(`.hora-${hora}`);
-                if (tempDiv) tempDiv.remove();
+                members_availabilities[nombreUsuario][fechaSeleccionada] =
+                    members_availabilities[nombreUsuario][fechaSeleccionada].filter(h => h !== hora);
             }
         });
 
@@ -178,51 +268,81 @@ function generarSelectorHoras(dia) {
     }
 }
 
-// =============================
-// 📊 CALCULAR TOP 3 POR SEMANA
-// =============================
+
+
+// =========================
+// 🏆 CALCULAR TOP 3 SEMANAL CON DISEÑO MEJORADO
+// =========================
 async function calcularTop3Semanal() {
-    const datos = await cargarDisponibilidad();
-    const disponibilidad = datos.disponibilidad;
+    try {
+        const snapshot = await get(ref(db, 'disponibilidad'));
+        const disponibilidad = snapshot.val() || {};
 
-    const conteoSemanas = [ {}, {}, {}, {} ]; // 4 semanas
+        const conteoSemanas = [{}, {}, {}, {}];
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0); // Normalizar fecha actual
 
-    for (const miembro in disponibilidad) {
-        for (const fecha in disponibilidad[miembro]) {
-            const date = new Date(fecha);
-            const semana = Math.floor((date - hoy) / (7 * 24 * 60 * 60 * 1000)); // Determina la semana (0-3)
+        for (const miembro in disponibilidad) {
+            for (const fecha in disponibilidad[miembro]) {
+                const date = new Date(fecha);
+                date.setHours(0, 0, 0, 0);
 
-            if (semana >= 0 && semana < 4) {
-                disponibilidad[miembro][fecha].forEach(hora => {
-                    const clave = `${fecha} - ${hora}:00`;
-                    conteoSemanas[semana][clave] = (conteoSemanas[semana][clave] || 0) + 1;
-                });
+                const diffDias = Math.floor((date - hoy) / (24 * 60 * 60 * 1000));
+                const semana = Math.floor(diffDias / 7);
+
+                if (semana >= 0 && semana < 4) {
+                    disponibilidad[miembro][fecha].forEach(hora => {
+                        const clave = `${fecha} - ${hora}:00`;
+                        conteoSemanas[semana][clave] = (conteoSemanas[semana][clave] || 0) + 1;
+                    });
+                }
             }
         }
+
+        conteoSemanas.forEach((conteo, index) => {
+            const top3 = Object.entries(conteo)
+                .sort((a, b) => b[1] - a[1]) 
+                .slice(0, 3); 
+
+            const ganadorSemana = document.getElementById(`ganador-semana-${index + 1}`);
+            if (ganadorSemana) {
+                ganadorSemana.innerHTML = ""; // Limpiar antes de añadir
+
+                if (top3.length === 0) {
+                    ganadorSemana.innerHTML = "<p>Sin disponibilidad registrada</p>";
+                } else {
+                    top3.forEach((item, position) => {
+                        const tarjeta = document.createElement("div");
+                        tarjeta.classList.add("tarjeta-top3", `posicion-${position + 1}`);
+
+                        tarjeta.innerHTML = `
+                            <div class="hora-top3">${item[0]}</div>
+                            <div class="votos-top3">👥 ${item[1]} personas disponibles</div>
+                        `;
+                        ganadorSemana.appendChild(tarjeta);
+                    });
+                }
+            }
+        });
+
+    } catch (error) {
+        console.error("Error al cargar datos de Firebase:", error);
     }
-
-    // Mostrar el top 3 de cada semana
-    conteoSemanas.forEach((conteo, index) => {
-        const top3 = Object.entries(conteo)
-            .sort((a, b) => b[1] - a[1])  // Ordenar de mayor a menor
-            .slice(0, 3)                 // Top 3
-            .map(item => `${item[0]} (${item[1]} personas)`);
-
-        document.getElementById(`ganador-semana-${index + 1}`).innerHTML = top3.join("<br>");
-    });
 }
 
-// =============================
+
+
+// =========================
 // 📥 EVENTOS
-// =============================
+// =========================
 document.getElementById("guardar-btn").addEventListener("click", guardarDisponibilidad);
 document.getElementById("miembro").addEventListener("change", mostrarDisponibilidad);
+document.getElementById("miembro").addEventListener("change", mostrarCalendario);
 
-// 🚀 Al cargar la página, calcular el top 3
-window.addEventListener("load", calcularTop3Semanal);
-
-document.addEventListener("DOMContentLoaded", limpiarDatosObsoletos);  // Limpieza al cargar la página
-document.getElementById("guardar-btn").addEventListener("click", async () => {
-    await guardarDisponibilidad();
-    await limpiarDatosObsoletos();  // Limpieza después de guardar
+window.addEventListener("load", async () => {
+    for (const miembro of members) {
+        members_availabilities[miembro] = {};
+    }
+    await limpiarDatosObsoletos();
+    await calcularTop3Semanal();
 });

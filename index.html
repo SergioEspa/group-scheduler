@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Disponibilidad de la Banda</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>🗓️ Planificador de Disponibilidad</h1>
+    
+        <div class="formulario">
+            <select name="miembro" id="miembro">
+                <option value="" disabled selected>Selecciona tu nombre</option>
+                <option value="Jose">Jose</option>
+                <option value="Pol">Pol</option>
+                <option value="Sara">Sara</option>
+                <option value="Sergio">Sergio</option>
+                <option value="Susana">Susana</option>
+            </select>
+        </div>
+    
+        <div class="calendario-container">
+            <div class="calendario" id="calendario"></div>
+    
+            <div class="panel-horas">
+                <h3>Selecciona horas</h3>
+                <div class="horas" id="horas-container"></div>
+            </div>
+        </div>
+
+        <!-- Contenedor para mostrar los días y horas ganadores -->
+        <div id="ganadores-container">
+        <h2>Top 3: Días y Horas</h2>
+        <table id="tabla-ganadores">
+            <thead>
+            <tr>
+                <th>Semana 1</th>
+                <th>Semana 2</th>
+                <th>Semana 3</th>
+                <th>Semana 4</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+                <td id="ganador-semana-1"></td>
+                <td id="ganador-semana-2"></td>
+                <td id="ganador-semana-3"></td>
+                <td id="ganador-semana-4"></td>
+            </tr>
+            </tbody>
+        </table>
+        </div>
+
+        <button class="guardar-btn" id="guardar-btn">Guardar Disponibilidad</button>
+    </div>    
+    <script type="module" src="app.js"></script>
+</body>
+</html>
